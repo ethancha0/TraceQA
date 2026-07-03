@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import {
   SIGNATURE_HEADER,
   verifyGitHubWebhookSignature,
@@ -53,22 +54,24 @@ export async function POST(request: Request): Promise<Response> {
     action: payload.action,
   });
 
-  try {
-    await dispatchGitHubWebhookEvent({
-      event,
-      deliveryId,
-      payload,
-    });
-  } catch (error) {
-    console.error("[github:webhook] Handler failed", {
-      event,
-      deliveryId,
-      repository: payload.repository?.full_name,
-      error,
-    });
+  const webhookContext = {
+    event,
+    deliveryId,
+    payload,
+  };
 
-    return jsonResponse({ error: "Webhook handler failed" }, 500);
-  }
+  after(async () => {
+    try {
+      await dispatchGitHubWebhookEvent(webhookContext);
+    } catch (error) {
+      console.error("[github:webhook] Background handler failed", {
+        event,
+        deliveryId,
+        repository: payload.repository?.full_name,
+        error,
+      });
+    }
+  });
 
   return jsonResponse({ ok: true });
 }
