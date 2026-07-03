@@ -40,7 +40,7 @@ ${suggestions || "Generate smoke tests for the changed user flows."}
 Diff summary:
 ${changes.diffText.slice(0, 60_000)}
 
-Write tests/generated/pr-${changes.pullNumber}.spec.ts content for these changes.`;
+Write .trace-qa/generated/pr-${changes.pullNumber}.spec.ts content for these changes.`;
 
   const response = await openai.chat.completions.create({
     model,

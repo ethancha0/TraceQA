@@ -7,6 +7,7 @@ export async function dispatchTraceQATestRun(
   repo: string,
   pullNumber: number,
   headRef: string,
+  specContent: string,
 ): Promise<number> {
   await octokit.rest.actions.createWorkflowDispatch({
     owner,
@@ -15,6 +16,7 @@ export async function dispatchTraceQATestRun(
     ref: headRef,
     inputs: {
       pr_number: String(pullNumber),
+      spec_base64: Buffer.from(specContent, "utf8").toString("base64"),
     },
   });
 
