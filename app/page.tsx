@@ -10,6 +10,7 @@ export default function Home() {
         <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
           GitHub App
         </p>
+        <p>testing</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
           Install {name}
         </h1>
