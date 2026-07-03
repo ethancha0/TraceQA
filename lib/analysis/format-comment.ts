@@ -1,7 +1,24 @@
-import { BOT_COMMENT_MARKER } from "@/lib/github/config";
+import {
+  BOT_COMMENT_MARKER,
+  RUN_TESTS_COMMAND,
+  TRACE_QA_WORKFLOW_FILE,
+} from "@/lib/github/config";
 import type { PullRequestAnalysis } from "./types";
 
-export function formatAnalysisComment(analysis: PullRequestAnalysis): string {
+export interface AnalysisCommentContext {
+  owner: string;
+  repo: string;
+  pullNumber: number;
+}
+
+export function formatAnalysisComment(
+  analysis: PullRequestAnalysis,
+  context?: AnalysisCommentContext,
+): string {
+  const runSection = context
+    ? formatRunTestsSection(context)
+    : formatRunTestsSectionFallback();
+
   const sections = [
     BOT_COMMENT_MARKER,
     "## Trace QA analysis",
@@ -27,10 +44,35 @@ export function formatAnalysisComment(analysis: PullRequestAnalysis): string {
       (item) => `- \`${item.file}\`: ${item.reason}`,
     ),
     "",
-    "_Automated review by Trace QA. Re-run on every PR update._",
+    runSection,
+    "",
+    "_Automated review by Trace QA. Re-run analysis on every PR update._",
   ];
 
   return sections.filter((section) => section !== null).join("\n");
+}
+
+function formatRunTestsSection(context: AnalysisCommentContext): string {
+  const actionsUrl = `https://github.com/${context.owner}/${context.repo}/actions/workflows/${TRACE_QA_WORKFLOW_FILE}`;
+
+  return [
+    "### ▶ Run suggested tests",
+    "",
+    "To generate Playwright tests and execute them in GitHub Actions:",
+    "",
+    `1. **Comment \`${RUN_TESTS_COMMAND}\`** on this PR (recommended)`,
+    `2. Or open [Actions → Trace QA Tests](${actionsUrl}) → **Run workflow** → enter PR #${context.pullNumber}`,
+    "",
+    "The bot will commit generated tests to this branch, run Playwright in CI, and post pass/fail results with artifact links.",
+  ].join("\n");
+}
+
+function formatRunTestsSectionFallback(): string {
+  return [
+    "### ▶ Run suggested tests",
+    "",
+    `Comment \`${RUN_TESTS_COMMAND}\` on this PR to generate and run Playwright tests in GitHub Actions.`,
+  ].join("\n");
 }
 
 function formatListSection<T>(

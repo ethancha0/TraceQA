@@ -83,3 +83,6 @@ export function getOpenAIConfig() {
 }
 
 export const BOT_COMMENT_MARKER = "<!-- trace-qa-analysis -->";
+export const BOT_RESULTS_MARKER = "<!-- trace-qa-results -->";
+export const RUN_TESTS_COMMAND = "/run-trace-qa";
+export const TRACE_QA_WORKFLOW_FILE = "trace-qa.yml";

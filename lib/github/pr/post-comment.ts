@@ -1,5 +1,8 @@
 import type { Octokit } from "@octokit/rest";
-import { BOT_COMMENT_MARKER } from "@/lib/github/config";
+import {
+  BOT_COMMENT_MARKER,
+  BOT_RESULTS_MARKER,
+} from "@/lib/github/config";
 
 export async function upsertPullRequestComment(
   octokit: Octokit,
@@ -7,8 +10,15 @@ export async function upsertPullRequestComment(
   repo: string,
   pullNumber: number,
   body: string,
+  marker: string = BOT_COMMENT_MARKER,
 ): Promise<void> {
-  const existingComment = await findBotComment(octokit, owner, repo, pullNumber);
+  const existingComment = await findCommentByMarker(
+    octokit,
+    owner,
+    repo,
+    pullNumber,
+    marker,
+  );
 
   if (existingComment) {
     await octokit.rest.issues.updateComment({
@@ -28,11 +38,29 @@ export async function upsertPullRequestComment(
   });
 }
 
-async function findBotComment(
+export async function upsertResultsComment(
   octokit: Octokit,
   owner: string,
   repo: string,
   pullNumber: number,
+  body: string,
+): Promise<void> {
+  return upsertPullRequestComment(
+    octokit,
+    owner,
+    repo,
+    pullNumber,
+    body,
+    BOT_RESULTS_MARKER,
+  );
+}
+
+async function findCommentByMarker(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  marker: string,
 ) {
   const comments = await octokit.paginate(octokit.rest.issues.listComments, {
     owner,
@@ -41,5 +69,5 @@ async function findBotComment(
     per_page: 100,
   });
 
-  return comments.find((comment) => comment.body?.includes(BOT_COMMENT_MARKER));
+  return comments.find((comment) => comment.body?.includes(marker));
 }
