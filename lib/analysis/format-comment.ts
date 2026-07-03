@@ -63,7 +63,7 @@ function formatRunTestsSection(context: AnalysisCommentContext): string {
     `1. **Comment \`${RUN_TESTS_COMMAND}\`** on this PR (recommended)`,
     `2. Or open [Actions → Trace QA Tests](${actionsUrl}) → **Run workflow** → enter PR #${context.pullNumber}`,
     "",
-    "The bot will commit generated tests to this branch, run Playwright in CI, and post pass/fail results with artifact links.",
+    "The bot will send generated tests to GitHub Actions as temporary workflow input, run Playwright in CI, and post pass/fail results with artifact links. No test file is committed to your branch.",
   ].join("\n");
 }
 

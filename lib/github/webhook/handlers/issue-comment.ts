@@ -35,7 +35,6 @@ export async function handleIssueCommentEvent(
     return;
   }
 
-  const octokitInstallation = installationId;
   const owner = repository.owner.login;
   const repo = repository.name;
   const pullNumber = issue.number;

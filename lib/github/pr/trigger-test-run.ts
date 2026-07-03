@@ -1,8 +1,8 @@
 import { generatePlaywrightSpec } from "@/lib/analysis/generate-playwright-spec";
 import { analyzePullRequestWithLLM } from "@/lib/analysis/analyze-pr";
+import { formatRunSetupFailedComment } from "@/lib/analysis/format-test-results";
 import { dispatchTraceQATestRun } from "@/lib/github/actions/dispatch-test-run";
 import { createInstallationOctokit } from "@/lib/github/client";
-import { commitGeneratedSpec } from "@/lib/github/pr/commit-generated-spec";
 import { fetchPullRequestChanges } from "@/lib/github/pr/fetch-changed-files";
 import { upsertResultsComment } from "@/lib/github/pr/post-comment";
 
@@ -33,71 +33,73 @@ export async function triggerTestRun(input: TriggerTestRunInput): Promise<void> 
       "<!-- trace-qa-results -->",
       "## Trace QA test run",
       "",
-      `Triggered by @${input.triggeredBy}. Generating Playwright tests and starting GitHub Actions...`,
+      `Triggered by @${input.triggeredBy}. Generating ephemeral Playwright tests and starting GitHub Actions...`,
       "",
       "⏳ _This comment will update when the run completes._",
     ].join("\n"),
   );
 
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    owner: input.owner,
-    repo: input.repo,
-    pull_number: input.pullNumber,
-  });
+  try {
+    const { data: pullRequest } = await octokit.rest.pulls.get({
+      owner: input.owner,
+      repo: input.repo,
+      pull_number: input.pullNumber,
+    });
 
-  const changes = await fetchPullRequestChanges(
-    octokit,
-    input.owner,
-    input.repo,
-    input.pullNumber,
-    pullRequest.title,
-  );
+    const changes = await fetchPullRequestChanges(
+      octokit,
+      input.owner,
+      input.repo,
+      input.pullNumber,
+      pullRequest.title,
+    );
 
-  const analysis = await analyzePullRequestWithLLM(changes);
-  const specContent = await generatePlaywrightSpec(changes, analysis);
+    const analysis = await analyzePullRequestWithLLM(changes);
+    const specContent = await generatePlaywrightSpec(changes, analysis);
 
-  const { path: specPath } = await commitGeneratedSpec(
-    octokit,
-    input.owner,
-    input.repo,
-    input.pullNumber,
-    input.headRef,
-    specContent,
-  );
+    const runId = await dispatchTraceQATestRun(
+      octokit,
+      input.owner,
+      input.repo,
+      input.pullNumber,
+      input.headRef,
+      specContent,
+    );
 
-  // Allow GitHub to index the new commit before dispatching the workflow.
-  await new Promise((resolve) => setTimeout(resolve, 5000));
+    await upsertResultsComment(
+      octokit,
+      input.owner,
+      input.repo,
+      input.pullNumber,
+      [
+        "<!-- trace-qa-results -->",
+        "## Trace QA test run",
+        "",
+        `Triggered by @${input.triggeredBy}.`,
+        "",
+        "- Generated spec: ephemeral workflow input (not committed to the repo)",
+        `- Workflow run: [View on GitHub](https://github.com/${input.owner}/${input.repo}/actions/runs/${runId})`,
+        "",
+        "⏳ _Running Playwright tests... This comment will update when the run completes._",
+      ].join("\n"),
+    );
 
-  const runId = await dispatchTraceQATestRun(
-    octokit,
-    input.owner,
-    input.repo,
-    input.pullNumber,
-    input.headRef,
-  );
+    console.info("[trace-qa:run] Dispatched workflow", {
+      repository: `${input.owner}/${input.repo}`,
+      pullNumber: input.pullNumber,
+      runId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
 
-  await upsertResultsComment(
-    octokit,
-    input.owner,
-    input.repo,
-    input.pullNumber,
-    [
-      "<!-- trace-qa-results -->",
-      "## Trace QA test run",
-      "",
-      `Triggered by @${input.triggeredBy}.`,
-      "",
-      `- Generated spec: \`${specPath}\``,
-      `- Workflow run: [View on GitHub](https://github.com/${input.owner}/${input.repo}/actions/runs/${runId})`,
-      "",
-      "⏳ _Running Playwright tests... This comment will update when the run completes._",
-    ].join("\n"),
-  );
+    await upsertResultsComment(
+      octokit,
+      input.owner,
+      input.repo,
+      input.pullNumber,
+      formatRunSetupFailedComment(input.pullNumber, input.triggeredBy, message),
+    );
 
-  console.info("[trace-qa:run] Dispatched workflow", {
-    repository: `${input.owner}/${input.repo}`,
-    pullNumber: input.pullNumber,
-    runId,
-    specPath,
-  });
+    throw error;
+  }
 }

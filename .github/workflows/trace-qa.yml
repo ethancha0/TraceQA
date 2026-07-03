@@ -9,6 +9,14 @@ on:
         description: Pull request number to test
         required: true
         type: string
+      spec_base64:
+        description: Base64-encoded generated Playwright spec
+        required: true
+        type: string
+      base_url:
+        description: Optional deployed URL to test instead of starting the app locally
+        required: false
+        type: string
 
 jobs:
   playwright:
@@ -28,16 +36,68 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Write generated test
+        run: |
+          mkdir -p .trace-qa/generated
+          printf '%s' '${{ inputs.spec_base64 }}' | base64 --decode > .trace-qa/generated/pr-${{ inputs.pr_number }}.spec.ts
+
+      - name: Install project dependencies if available
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            npm init -y
+          fi
+
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Create Trace QA Playwright config
+        run: |
+          cat > .trace-qa/playwright.config.ts <<'EOF'
+          import { defineConfig, devices } from '@playwright/test';
+
+          export default defineConfig({
+            testDir: './generated',
+            reporter: [['html', { outputFolder: '../playwright-report' }], ['json', { outputFile: '../playwright-report/results.json' }]],
+            use: {
+              baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000',
+              trace: 'retain-on-failure',
+              screenshot: 'only-on-failure',
+              video: 'retain-on-failure',
+            },
+            projects: [
+              { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+            ],
+          });
+          EOF
+
+      - name: Start app when no base URL is provided
+        if: ${{ inputs.base_url == '' }}
+        run: |
+          if npm run | grep -q " build"; then
+            npm run build
+          fi
+
+          if npm run | grep -q " start"; then
+            npm run start &
+            echo $! > .trace-qa/app.pid
+            npx -y wait-on http://127.0.0.1:3000 --timeout 120000
+          else
+            echo "No npm start script found. Provide a base_url input for this repo."
+            exit 1
+          fi
+
       - name: Run Playwright tests
-        run: npx playwright test tests/generated/pr-${{ inputs.pr_number }}.spec.ts tests/example.spec.ts --reporter=html,json
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+        run: npx playwright test --config .trace-qa/playwright.config.ts
         continue-on-error: true
         id: playwright
 

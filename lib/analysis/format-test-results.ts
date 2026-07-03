@@ -69,3 +69,32 @@ export function formatPendingRunComment(
     "⏳ _Running Playwright tests... This comment will update when the run completes._",
   ].join("\n");
 }
+
+export function formatRunSetupFailedComment(
+  pullNumber: number,
+  triggeredBy: string,
+  errorMessage: string,
+): string {
+  return [
+    BOT_RESULTS_MARKER,
+    "## Trace QA test run",
+    "",
+    `❌ **SETUP FAILED** — PR #${pullNumber}`,
+    `_Triggered by @${triggeredBy}_`,
+    "",
+    "Trace QA could not start the GitHub Actions run.",
+    "",
+    "### Error",
+    "",
+    `\`${errorMessage}\``,
+    "",
+    "Most common causes:",
+    "",
+    "- GitHub App **Actions** permission is not set to **Read & write**",
+    "- The app was not reinstalled after permission changes",
+    "- `.github/workflows/trace-qa.yml` is missing from the repository default branch",
+    "- The generated test is too large for a workflow dispatch input",
+    "",
+    "Fix the app permissions, reinstall the app on this repo, then comment `/run-trace-qa` again.",
+  ].join("\n");
+}
