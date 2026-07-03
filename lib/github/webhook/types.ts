@@ -3,6 +3,7 @@ export type GitHubWebhookEvent =
   | "pull_request"
   | "push"
   | "issue_comment"
+  | "workflow_run"
   | (string & {});
 
 export interface GitHubRepository {
@@ -72,6 +73,9 @@ export interface GitHubWebhookPayload {
     number: number;
     title: string;
     html_url: string;
+    pull_request?: {
+      url: string;
+    };
     user?: {
       login: string;
     };
@@ -88,4 +92,14 @@ export interface GitHubWebhookPayload {
     id: number;
     full_name: string;
   }>;
+  workflow_run?: {
+    id: number;
+    name?: string;
+    head_branch?: string;
+    conclusion?: string | null;
+    html_url: string;
+    path: string;
+    event: string;
+    status: string;
+  };
 }

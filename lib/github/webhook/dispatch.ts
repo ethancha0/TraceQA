@@ -1,3 +1,4 @@
+import { handleWorkflowRunEvent } from "./handlers/workflow-run";
 import { handleInstallationEvent } from "./handlers/installation";
 import { handleIssueCommentEvent } from "./handlers/issue-comment";
 import { handlePullRequestEvent } from "./handlers/pull-request";
@@ -11,6 +12,7 @@ const eventHandlers: Record<string, EventHandler> = {
   pull_request: handlePullRequestEvent,
   push: handlePushEvent,
   issue_comment: handleIssueCommentEvent,
+  workflow_run: handleWorkflowRunEvent,
 };
 
 export async function dispatchGitHubWebhookEvent(

@@ -1,0 +1,57 @@
+name: Trace QA Tests
+
+run-name: Trace QA - PR #${{ inputs.pr_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to test
+        required: true
+        type: string
+
+jobs:
+  playwright:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout PR merge ref
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/merge
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test tests/generated/pr-${{ inputs.pr_number }}.spec.ts tests/example.spec.ts --reporter=html,json
+        continue-on-error: true
+        id: playwright
+
+      - name: Upload Trace QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trace-qa-report-pr-${{ inputs.pr_number }}
+          path: |
+            playwright-report/
+            test-results/
+            playwright-report/results.json
+          retention-days: 14
+
+      - name: Fail job if tests failed
+        if: steps.playwright.outcome == 'failure'
+        run: exit 1

@@ -37,7 +37,11 @@ export async function analyzePullRequest(
   });
 
   const analysis = await analyzePullRequestWithLLM(changes);
-  const commentBody = formatAnalysisComment(analysis);
+  const commentBody = formatAnalysisComment(analysis, {
+    owner: input.owner,
+    repo: input.repo,
+    pullNumber: input.pullNumber,
+  });
 
   await upsertPullRequestComment(
     octokit,

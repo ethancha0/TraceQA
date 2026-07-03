@@ -1,21 +1,60 @@
+import { RUN_TESTS_COMMAND } from "@/lib/github/config";
+import { createInstallationOctokit } from "@/lib/github/client";
+import { triggerTestRun } from "@/lib/github/pr/trigger-test-run";
 import type { GitHubWebhookContext } from "../types";
 
 export async function handleIssueCommentEvent(
   context: GitHubWebhookContext,
 ): Promise<void> {
   const { payload } = context;
+  const commentBody = payload.comment?.body?.trim() ?? "";
+  const issue = payload.issue;
+  const repository = payload.repository;
+  const installationId = payload.installation?.id;
 
   console.info("[github:issue_comment]", {
     action: payload.action,
-    repository: payload.repository?.full_name,
-    issueNumber: payload.issue?.number,
-    issueTitle: payload.issue?.title,
-    commentId: payload.comment?.id,
+    repository: repository?.full_name,
+    issueNumber: issue?.number,
     commentAuthor: payload.comment?.user?.login,
-    commentPreview: payload.comment?.body?.slice(0, 120),
-    issueUrl: payload.issue?.html_url,
-    commentUrl: payload.comment?.html_url,
+    commentPreview: commentBody.slice(0, 120),
   });
 
-  // Future: react to bot commands in issue/PR comments.
+  if (
+    payload.action !== "created" ||
+    !issue?.number ||
+    !repository ||
+    !installationId ||
+    !payload.issue?.pull_request ||
+    payload.sender?.type === "Bot"
+  ) {
+    return;
+  }
+
+  if (!commentBody.toLowerCase().includes(RUN_TESTS_COMMAND)) {
+    return;
+  }
+
+  const octokitInstallation = installationId;
+  const owner = repository.owner.login;
+  const repo = repository.name;
+  const pullNumber = issue.number;
+  const triggeredBy = payload.comment?.user?.login ?? payload.sender?.login ?? "unknown";
+
+  const octokit = createInstallationOctokit(installationId);
+
+  const { data: pullRequest } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber,
+  });
+
+  await triggerTestRun({
+    installationId,
+    owner,
+    repo,
+    pullNumber,
+    headRef: pullRequest.head.ref,
+    triggeredBy,
+  });
 }
