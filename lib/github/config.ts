@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 function normalizePrivateKey(key: string): string {
   let normalized = key.trim();
@@ -17,6 +17,12 @@ function normalizePrivateKey(key: string): string {
 function loadPrivateKeyFromEnv(): string | undefined {
   const keyPath = process.env.GITHUB_PRIVATE_KEY_PATH?.trim();
   if (keyPath) {
+    if (!existsSync(keyPath)) {
+      throw new Error(
+        `GITHUB_PRIVATE_KEY_PATH file not found: ${keyPath}. Check the path — downloaded keys usually end in .pem`,
+      );
+    }
+
     return readFileSync(keyPath, "utf8");
   }
 
