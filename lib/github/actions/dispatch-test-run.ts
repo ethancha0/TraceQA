@@ -1,6 +1,12 @@
 import type { Octokit } from "@octokit/rest";
 import { TRACE_QA_WORKFLOW_FILE } from "@/lib/github/config";
 
+type WorkflowRunWithDisplayTitle = Awaited<
+  ReturnType<Octokit["rest"]["actions"]["listWorkflowRuns"]>
+>["data"]["workflow_runs"][number] & {
+  display_title?: string;
+};
+
 export async function dispatchTraceQATestRun(
   octokit: Octokit,
   owner: string,
@@ -33,7 +39,7 @@ export async function dispatchTraceQATestRun(
     });
 
     const run = runs.workflow_runs.find((workflowRun) =>
-      workflowRun.name?.includes(`PR #${pullNumber}`),
+      getWorkflowRunTitle(workflowRun).includes(`PR #${pullNumber}`),
     );
 
     if (run?.id) {
@@ -42,4 +48,8 @@ export async function dispatchTraceQATestRun(
   }
 
   throw new Error("Failed to locate dispatched Trace QA workflow run");
+}
+
+function getWorkflowRunTitle(workflowRun: WorkflowRunWithDisplayTitle): string {
+  return workflowRun.display_title ?? workflowRun.name ?? "";
 }

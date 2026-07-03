@@ -27,7 +27,7 @@ export async function handleWorkflowRunEvent(
     return;
   }
 
-  const pullNumber = parsePullNumberFromRunName(workflowRun.name);
+  const pullNumber = parsePullNumberFromRunName(getWorkflowRunTitle(workflowRun));
   if (!pullNumber) {
     console.warn("[github:workflow_run] Could not parse PR number from run name", {
       runName: workflowRun.name,
@@ -118,4 +118,12 @@ function parsePullNumberFromRunName(runName: string | undefined): number | null 
   }
 
   return Number(match[1]);
+}
+
+function getWorkflowRunTitle(
+  workflowRun: NonNullable<GitHubWebhookContext["payload"]["workflow_run"]> & {
+    display_title?: string;
+  },
+): string | undefined {
+  return workflowRun.display_title ?? workflowRun.name;
 }

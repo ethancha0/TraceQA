@@ -1,6 +1,6 @@
 name: Trace QA Tests
 
-run-name: Trace QA - PR #${{ inputs.pr_number }}
+run-name: "Trace QA - PR #${{ inputs.pr_number }}"
 
 on:
   workflow_dispatch:

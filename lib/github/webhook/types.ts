@@ -95,6 +95,7 @@ export interface GitHubWebhookPayload {
   workflow_run?: {
     id: number;
     name?: string;
+    display_title?: string;
     head_branch?: string;
     conclusion?: string | null;
     html_url: string;
